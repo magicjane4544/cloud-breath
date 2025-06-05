@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>云息｜呼吸成穹</title>
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+      background: linear-gradient(to bottom, #a1c4fd, #c2e9fb);
+      height: 100vh;
+      font-family: 'Helvetica Neue', sans-serif;
+    }
+    #cloud-container {
+      position: relative;
+      width: 100%;
+      height: 100%;
+    }
+    .cloud {
+      position: absolute;
+      background: white;
+      border-radius: 50%;
+      filter: blur(15px);
+      opacity: 0.8;
+    }
+    #prompt {
+      position: absolute;
+      bottom: 20%;
+      width: 100%;
+      text-align: center;
+      color: rgba(255,255,255,0.7);
+      font-size: 1.2rem;
+      text-shadow: 0 0 5px rgba(0,0,0,0.3);
+      transition: opacity 2s;
+    }
+  </style>
+</head>
+<body>
+  <div id="cloud-container"></div>
+  <div id="prompt">将手机放平，缓慢呼吸...</div>
+
+  <script>
+    // ===== 核心功能 =====
+    const cloudContainer = document.getElementById('cloud-container');
+    const prompt = document.getElementById('prompt');
+    
+    // 1. 请求麦克风权限
+    navigator.mediaDevices.getUserMedia({ audio: true })
+      .then(handleAudioStream)
+      .catch(() => {
+        prompt.textContent = "未获得麦克风权限，请刷新页面重试";
+      });
+
+    // 2. 音频处理
+    function handleAudioStream(stream) {
+      const audioContext = new AudioContext();
+      const analyzer = audioContext.createAnalyser();
+      const microphone = audioContext.createMediaStreamSource(stream);
+      
+      microphone.connect(analyzer);
+      analyzer.fftSize = 256;
+      
+      // 3. 呼吸检测
+      setInterval(() => {
+        const dataArray = new Uint8Array(analyzer.frequencyBinCount);
+        analyzer.getByteFrequencyData(dataArray);
+        
+        // 计算平均音量 (简易版)
+        let sum = 0;
+        for (let i = 0; i < dataArray.length; i++) {
+          sum += dataArray[i];
+        }
+        const volume = sum / dataArray.length;
+        
+        // 4. 生成云朵
+        if (volume > 10) { // 检测到呼吸
+          prompt.style.opacity = "0";
+          createCloud(volume);
+        }
+      }, 500); // 每0.5秒检测一次
+    }
+
+    // 5. 云朵生成函数
+    function createCloud(intensity) {
+      const cloud = document.createElement('div');
+      cloud.className = 'cloud';
+      
+      // 云朵大小与呼吸强度相关
+      const size = 30 + intensity * 2;
+      cloud.style.width = `${size}px`;
+      cloud.style.height = `${size}px`;
+      
+      // 随机位置
+      cloud.style.left = `${Math.random() * 100}%`;
+      cloud.style.top = `${20 + Math.random() * 60}%`;
+      
+      // 随机动画
+      const duration = 20 + Math.random() * 40;
+      cloud.style.animation = `float ${duration}s linear infinite`;
+      
+      cloudContainer.appendChild(cloud);
+      
+      // 6. 自动清理旧云朵
+      setTimeout(() => {
+        cloud.style.opacity = '0';
+        setTimeout(() => cloud.remove(), 2000);
+      }, 30000);
+    }
+
+    // 7. 添加浮动动画
+    const styleSheet = document.styleSheets[0];
+    styleSheet.insertRule(`
+      @keyframes float {
+        0% { transform: translateX(0) translateY(0); }
+        50% { transform: translateX(${Math.random() * 100 - 50}px) translateY(-20px); }
+        100% { transform: translateX(${Math.random() * 100 - 50}px) translateY(0); }
+      }
+    `, styleSheet.cssRules.length);
+  </script>
+</body>
+</html>
